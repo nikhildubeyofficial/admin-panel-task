@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String  @id @default(uuid())
+  email          String  @unique
+  password       String // Hashed
+  name           String?
+  points         Int     @default(0)
+  referralCode   String  @unique
+  referredByCode String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  referredBy User?  @relation("Referrals", fields: [referredByCode], references: [referralCode])
+  referrals  User[] @relation("Referrals")
+
+  submissions    TaskSubmission[]
+  redeemRequests RedeemRequest[]
+  payouts        Payout[]
+  certificates   Certificate[]
+
+  @@index([email])
+  @@index([referralCode])
+}
+
+model Admin {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  password String
+  name     String?
+  role     String  @default("ADMIN") // SUPER_ADMIN, ADMIN
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs    AuditLog[]
+  createdTasks Task[]
+}
+
+model Task {
+  id           String   @id @default(uuid())
+  title        String
+  description  String
+  points       Int
+  isActive     Boolean  @default(true)
+  requirements String[] // Array of strings for requirements/steps
+
+  // New fields for enhanced task management
+  deadline      DateTime?
+  category      String?
+  proofRequired Boolean   @default(true)
+  createdBy     String?
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE, ARCHIVED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submissions TaskSubmission[]
+  creator     Admin?           @relation(fields: [createdBy], references: [id])
+
+  @@index([title])
+  @@index([status])
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model TaskSubmission {
+  id              String           @id @default(uuid())
+  userId          String
+  taskId          String
+  status          SubmissionStatus @default(PENDING)
+  proofUrl        String? // URL to uploaded screenshot/proof
+  adminComment    String?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  task Task @relation(fields: [taskId], references: [id])
+}
+
+model Certificate {
+  id         String   @id @default(uuid())
+  userId     String
+  courseName String
+  issueDate  DateTime @default(now())
+  pdfUrl     String // URL to stored PDF
+  accessCode String   @unique // For verification
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum RedeemStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model RedeemRequest {
+  id        String       @id @default(uuid())
+  userId    String
+  amount    Int // Points amount
+  status    RedeemStatus @default(PENDING)
+  adminNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id])
+  payout Payout?
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Payout {
+  id              String       @id @default(uuid())
+  userId          String
+  redeemRequestId String       @unique
+  amount          Float // Monetary amount
+  currency        String       @default("USD")
+  status          PayoutStatus @default(PENDING)
+  transactionId   String? // From payment gateway
+  gateway         String? // e.g. "STRIPE", "MANUAL"
+  processedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id])
+  redeemRequest RedeemRequest @relation(fields: [redeemRequestId], references: [id])
+}
+
+model AuditLog {
+  id         String  @id @default(uuid())
+  adminId    String?
+  action     String // e.g. "APPROVE_TASK", "PROCESS_PAYOUT"
+  entityId   String // ID of the affected entity
+  entityType String // "TASK_SUBMISSION", "PAYOUT"
+  details    String? // JSON string or description
+  ipAddress  String?
+
+  createdAt DateTime @default(now())
+
+  admin Admin? @relation(fields: [adminId], references: [id])
+}
