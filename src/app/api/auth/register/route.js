@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 import { registerSchema } from '@/lib/validations/auth'
+import { sendWelcomeEmail } from '@/services/email'
 
 export async function POST(req) {
     try {
@@ -35,6 +36,9 @@ export async function POST(req) {
                 role: 'ADMIN' // Default role
             }
         })
+
+        // Send Welcome Email
+        await sendWelcomeEmail(newUser.email, newUser.name)
 
         return NextResponse.json({
             success: true,

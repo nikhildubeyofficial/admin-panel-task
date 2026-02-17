@@ -22,6 +22,7 @@ export default function PayoutsPage() {
     const [txId, setTxId] = useState('')
     const [note, setNote] = useState('')
     const [actionType, setActionType] = useState(null) // 'APPROVE', 'REJECT', 'PAY'
+    const [statusFilter, setStatusFilter] = useState('ALL')
 
     const { data, isLoading } = useQuery({
         queryKey: ['payouts'],
@@ -77,9 +78,30 @@ export default function PayoutsPage() {
 
     const requests = data?.requests || []
 
+    // Filter requests
+    const filteredRequests = requests.filter(req => {
+        if (statusFilter === 'ALL') return true
+        return req.status === statusFilter
+    })
+
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">Payout Management</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold tracking-tight">Payout Management</h1>
+                <div className="flex gap-2">
+                    <select
+                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        <option value="ALL">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="PAID">Paid</option>
+                        <option value="REJECTED">Rejected</option>
+                    </select>
+                </div>
+            </div>
 
             <Card>
                 <CardContent className="p-0">
@@ -96,10 +118,10 @@ export default function PayoutsPage() {
                                 </tr>
                             </thead>
                             <tbody className="[&_tr:last-child]:border-0">
-                                {requests.length === 0 ? (
-                                    <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">No active requests</td></tr>
+                                {filteredRequests.length === 0 ? (
+                                    <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">No requests found</td></tr>
                                 ) : (
-                                    requests.map((req) => (
+                                    filteredRequests.map((req) => (
                                         <tr key={req.id} className="border-b transition-colors hover:bg-muted/50">
                                             <td className="p-4">
                                                 <div className="font-medium">{req.user.name}</div>

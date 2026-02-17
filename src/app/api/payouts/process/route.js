@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { verifyToken } from '@/lib/jwt'
 import { cookies } from 'next/headers'
+import { sendPayoutStatusEmail } from '@/services/email'
 
 export async function POST(req) {
     try {
@@ -51,6 +52,14 @@ export async function POST(req) {
                         details: `Refunded ${request.amount} points`
                     }
                 })
+
+                // Send Email (Safe)
+                try {
+                    await sendPayoutStatusEmail(request.user.email, request.user.name, request.amount, 'REJECTED', adminNote)
+                } catch (e) {
+                    console.error("Email failed", e)
+                }
+
                 return { status: 'REJECTED' }
             }
 
@@ -87,6 +96,14 @@ export async function POST(req) {
                         details: `Approved for $${amount}`
                     }
                 })
+
+                // Send Email (Safe)
+                try {
+                    await sendPayoutStatusEmail(request.user.email, request.user.name, request.amount, 'APPROVED', `Amount: $${amount}`)
+                } catch (e) {
+                    console.error("Email failed", e)
+                }
+
                 return { status: 'APPROVED', payout }
             }
 
@@ -123,6 +140,14 @@ export async function POST(req) {
                         details: transactionId ? `TX: ${transactionId}` : 'Manual completion'
                     }
                 })
+
+                // Send Email (Safe)
+                try {
+                    await sendPayoutStatusEmail(request.user.email, request.user.name, request.amount, 'PAID', transactionId)
+                } catch (e) {
+                    console.error("Email failed", e)
+                }
+
                 return { status: 'PAID' }
             }
 

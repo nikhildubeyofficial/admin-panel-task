@@ -101,9 +101,9 @@ export default function CertificatesPage() {
                                             </td>
                                             <td className="p-4">{format(new Date(cert.createdAt), 'MMM d, yyyy')}</td>
                                             <td className="p-4 flex gap-2">
-                                                {cert.certificateUrl && (
+                                                {cert.pdfUrl && (
                                                     <Button variant="outline" size="sm" asChild>
-                                                        <a href={cert.certificateUrl} target="_blank" rel="noopener noreferrer">
+                                                        <a href={cert.pdfUrl} target="_blank" rel="noopener noreferrer">
                                                             <ExternalLink className="mr-2 h-3 w-3" /> View
                                                         </a>
                                                     </Button>

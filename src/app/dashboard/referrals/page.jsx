@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Input } from '@/components/ui/input'
+import { useSearchParams } from 'next/navigation'
 
 
 async function fetchReferrals() {
@@ -14,8 +15,11 @@ async function fetchReferrals() {
     return res.json()
 }
 
-export default function ReferralsPage() {
-    const [search, setSearch] = useState('')
+function ReferralsContent() {
+    const searchParams = useSearchParams()
+    const initialSearch = searchParams.get('referrerCode') || ''
+    const [search, setSearch] = useState(initialSearch)
+
     const { data, isLoading } = useQuery({
         queryKey: ['referrals'],
         queryFn: fetchReferrals,
@@ -84,5 +88,13 @@ export default function ReferralsPage() {
                 </CardContent>
             </Card>
         </div>
+    )
+}
+
+export default function ReferralsPage() {
+    return (
+        <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>}>
+            <ReferralsContent />
+        </Suspense>
     )
 }

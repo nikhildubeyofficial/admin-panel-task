@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
-import { generateCertificate, sendCertificateEmail } from '@/services/certificate'
+import { generateCertificate } from '@/services/certificate'
+import { sendCertificateEmail, sendTaskStatusEmail } from '@/services/email'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/jwt'
 
@@ -85,13 +86,10 @@ export async function PATCH(req, { params }) {
         })
 
         // Post-Transaction: Async Certificate Generation
-        if (result.certificate) {
-            // Don't await this to keep response fast? 
-            // Requirement: "Email certificate automatically".
-            // Better to await to catch errors, or use background job.
-            // I'll await it to ensure it happens or fail gracefully.
-            try {
-                // Generate and save certificate locally
+        // Post-Transaction: Async Email Notifications
+        try {
+            if (status === 'APPROVED' && result.certificate) {
+                // Generate PDF
                 const { buffer, url } = await generateCertificate(result.user.name, result.task.title)
 
                 // Update certificate URL in DB
@@ -100,14 +98,20 @@ export async function PATCH(req, { params }) {
                     data: { pdfUrl: url }
                 })
 
-                // Send Email
-                await sendCertificateEmail(result.user.email, result.user.name, buffer)
+                // Send Certificate Email (includes approval msg)
+                await sendCertificateEmail(result.user.email, result.user.name, buffer, result.task.title)
 
-            } catch (genError) {
-                console.error("Post-approval error:", genError)
-                // We don't fail the request because transaction succeeded.
-                // Alert admin or log for retry.
+                // Optionally send generic approval email too, but certificate email covers it.
+                // Or send explicit task status email:
+                await sendTaskStatusEmail(result.user.email, result.user.name, result.task.title, 'APPROVED')
+
+            } else if (status === 'REJECTED') {
+                // Send Rejection Email
+                await sendTaskStatusEmail(result.user.email, result.user.name, result.task.title, 'REJECTED', reason)
             }
+        } catch (genError) {
+            console.error("Post-processing notification error:", genError)
+            // Log but don't fail request
         }
 
         return NextResponse.json({ success: true, submission: result.updatedSubmission })
